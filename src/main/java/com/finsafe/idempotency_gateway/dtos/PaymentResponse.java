@@ -1,4 +1,4 @@
-package com.finsafe.idempotency_gateway.dto;
+package com.finsafe.idempotency_gateway.dtos;
 
 public record PaymentResponse(
         String message

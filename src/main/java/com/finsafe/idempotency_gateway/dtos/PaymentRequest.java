@@ -1,4 +1,4 @@
-package com.finsafe.idempotency_gateway.dto;
+package com.finsafe.idempotency_gateway.dtos;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;

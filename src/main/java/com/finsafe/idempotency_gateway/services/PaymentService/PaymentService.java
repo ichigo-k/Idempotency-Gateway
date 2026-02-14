@@ -4,5 +4,5 @@ import com.finsafe.idempotency_gateway.dtos.PaymentRequest;
 import com.finsafe.idempotency_gateway.dtos.PaymentResponse;
 
 public interface PaymentService {
-    PaymentResponse process(String key, String userId, PaymentRequest paymentRequest);
+    PaymentResponse process(String key, String clientId, PaymentRequest paymentRequest);
 }

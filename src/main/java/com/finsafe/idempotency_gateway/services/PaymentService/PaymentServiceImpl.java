@@ -4,6 +4,7 @@ import com.finsafe.idempotency_gateway.dtos.PaymentRequest;
 import com.finsafe.idempotency_gateway.dtos.PaymentResponse;
 import com.finsafe.idempotency_gateway.entities.Transaction;
 import com.finsafe.idempotency_gateway.repositories.TransactionRepository;
+import com.finsafe.idempotency_gateway.services.IdempotencyService.IdempotencyServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,11 +16,15 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
     private final TransactionRepository transactionRepository;
+    private final IdempotencyServiceImpl idempotencyService;
+
     private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
+    @Override
+    public PaymentResponse process(String idempotencyKey, String clientId, PaymentRequest paymentRequest){
 
-
-    public PaymentResponse process(String key, String userId, PaymentRequest paymentRequest){
+        String hash  ="Hello";
+        idempotencyService.start(clientId, idempotencyKey, hash);
         try {
             TimeUnit.SECONDS.sleep(2);
         } catch (InterruptedException e) {
@@ -33,6 +38,7 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Transaction {} saved to DB", transaction.getId());
 
         String message = "Charged " + paymentRequest.amount()+ " " + paymentRequest.currency();
+        idempotencyService.complete(clientId, idempotencyKey, hash, 200, message);
 
         return new PaymentResponse(message);
     }

@@ -2,33 +2,43 @@ package com.finsafe.idempotency_gateway.controllers;
 
 import com.finsafe.idempotency_gateway.dtos.PaymentRequest;
 import com.finsafe.idempotency_gateway.dtos.PaymentResponse;
+import com.finsafe.idempotency_gateway.models.IdempotencyRecord;
+import com.finsafe.idempotency_gateway.services.IdempotencyService.IdempotencyServiceImpl;
 import com.finsafe.idempotency_gateway.services.PaymentService.PaymentServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+;
+import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("api/v1/")
 public class PaymentController {
 
-    public static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
-    public static final String USER_ID_HEADER = "UserId";
+    private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+    private  static final String CLIENT_ID_HEADER = "Client-Id";
 
-    public final PaymentServiceImpl paymentService;
+    private final PaymentServiceImpl paymentService;
+    private final IdempotencyServiceImpl idempotencyService;
+
 
     @PostMapping("process-payment")
-    public ResponseEntity<String> process_payment(
-            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(value = USER_ID_HEADER) String userId,
-            @Valid @RequestBody PaymentRequest request
+    public ResponseEntity<PaymentResponse> process_payment(@RequestHeader(value = IDEMPOTENCY_KEY_HEADER) String idempotencyKey, @RequestHeader(value = CLIENT_ID_HEADER) String clientId, @Valid @RequestBody PaymentRequest request
     ){
-        PaymentResponse results = paymentService.process(idempotencyKey, userId, request);
 
+        Optional<IdempotencyRecord> rec = idempotencyService.get(clientId, idempotencyKey);
 
-        return new ResponseEntity<>(results.message(),HttpStatus.OK);
+        if(rec.isPresent()){
+            return ResponseEntity
+                    .status(rec.get().getHttpStatus())
+                    .header("X-Cache-Hit", "true")
+                    .body(new PaymentResponse(rec.get().getResponseBody()));
+        }
+        PaymentResponse results = paymentService.process(idempotencyKey, clientId, request);
+        return ResponseEntity.ok(results);
     }
 
 }

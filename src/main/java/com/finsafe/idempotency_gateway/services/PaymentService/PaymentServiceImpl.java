@@ -4,6 +4,7 @@ import com.finsafe.idempotency_gateway.dtos.PaymentRequest;
 import com.finsafe.idempotency_gateway.dtos.PaymentResponse;
 import com.finsafe.idempotency_gateway.entities.Transaction;
 import com.finsafe.idempotency_gateway.repositories.TransactionRepository;
+import com.finsafe.idempotency_gateway.services.HashService.HashServiceimpl;
 import com.finsafe.idempotency_gateway.services.IdempotencyService.IdempotencyServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -17,13 +18,14 @@ import java.util.concurrent.TimeUnit;
 public class PaymentServiceImpl implements PaymentService {
     private final TransactionRepository transactionRepository;
     private final IdempotencyServiceImpl idempotencyService;
+    private final HashServiceimpl hashService;
 
     private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
     @Override
     public PaymentResponse process(String idempotencyKey, String clientId, PaymentRequest paymentRequest){
 
-        String hash  ="Hello";
+        String hash  = hashService.sha256(paymentRequest);
         idempotencyService.start(clientId, idempotencyKey, hash);
         try {
             TimeUnit.SECONDS.sleep(2);

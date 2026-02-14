@@ -26,7 +26,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponse process(String idempotencyKey, String clientId, PaymentRequest paymentRequest){
 
         String hash  = hashService.sha256(paymentRequest);
-        idempotencyService.start(clientId, idempotencyKey, hash);
+        Boolean hasStarted = idempotencyService.start(clientId, idempotencyKey, hash);
         try {
             TimeUnit.SECONDS.sleep(2);
         } catch (InterruptedException e) {

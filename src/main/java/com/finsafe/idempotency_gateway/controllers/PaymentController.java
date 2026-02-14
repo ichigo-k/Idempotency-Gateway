@@ -36,7 +36,7 @@ public class PaymentController {
 
         if(rec.isEmpty()){
             PaymentResponse results = paymentService.process(idempotencyKey, clientId, request);
-            return ResponseEntity.ok(results);
+            return ResponseEntity.status(HttpStatus.CREATED).body(results);
         }
 
         if(!hashService.matchesSha256(request, rec.get().getRequestHash())){

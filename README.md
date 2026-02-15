@@ -24,7 +24,7 @@ The services include:
 ---
 
 ## Sequence Flow 
-
+![Idempotent Gateway Flow Chart](docs/Idempotent%20Payment%20Processing%20Flow%20Chart.jpg)
 
 
 ---

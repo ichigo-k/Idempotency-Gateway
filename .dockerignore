@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# IDE files
+.idea
+.vscode
+*.iml
+
+# Build output (except the final JAR if building outside Docker)
+target/*
+!target/*.jar
+
+# Gradle build output
+build/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+
+# Test reports
+coverage/
+test-output/
+
+# Docker compose files
+docker-compose.yaml

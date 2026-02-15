@@ -2,9 +2,11 @@
 
 ## Overview
 
-This project implements an **Idempotency Layer** for payment processing.
-It ensures that a payment request is processed **exactly once**, even if the client retries due to network failures or timeouts.
+This project implements an **Idempotency Layer** for payment processing. It ensures that a payment request is processed **exactly once**, even if the client retries due to network failures, timeouts, or duplicate submissions.
 
+The system also addresses **race conditions** that can occur when multiple identical requests arrive at the same time. Without proper coordination, concurrent requests could be processed in parallel, which may result in duplicate transactions.
+
+To prevent this, the system uses an idempotency key, request hashing, and atomic operations in Redis. These mechanisms ensure that only one request is allowed to execute the payment operation.Subsequent requests either wait for the operation to complete or receive the previously computed response.
 
 ---
 
@@ -18,23 +20,6 @@ The services include:
 * **PostgreSQL** – Persists idempotency records, request hashes, and stored responses.
 * **Redis** – Provides fast lookups and assists with concurrency control during in-flight requests.
 * **Docker Compose** – Orchestrates all services, allowing the entire system to be started with a single command.
-
-
-### High-Level Flow
-
-1. Client sends request with:
-
-  * Idempotency-Key
-  * Client-Id
-2. System checks if record exists
-3. If not:
-  * Create record with status `IN_PROGRESS`
-  * Process payment
-  * Save response
-4. If duplicate:
-  * Return stored response immediately
-5. If same key but different body:
-  * Return `409 Conflict`
 
 ---
 
@@ -64,7 +49,7 @@ cd idempotency-gateway
 Start the system:
 
 ```bash
-docker compose up --build
+docker compose up -d --build 
 ```
 
 The API will be available at:
@@ -157,47 +142,40 @@ X-Cache-Hit: true
 
 ### Why PostgreSQL?
 
-PostgreSQL is used as the primary datastore to guarantee **durability and correctness** of idempotency records.
+PostgreSQL was chosen as the primary database to **store computed transactions permanently**. Unlike Redis, which is used for temporary caching, PostgreSQL provides durable and reliable long-term storage.
 
-Key reasons:
-- **Strong consistency** ensures that once a payment response is stored, it can be safely returned for all subsequent duplicate requests.
-- **Transactional guarantees** allow atomic creation and updates of idempotency records, which is critical for preventing double execution.
-- **Persistence across restarts** ensures that idempotency is preserved even if the application crashes or restarts.
+It serves several important purposes:
+- **Permanent persistence** of transaction records, ensuring data is not lost after application restarts or cache expiration.
+- **Data integrity and reliability**, supported by PostgreSQL’s ACID-compliant transactional guarantees.
+- **Auditing and reporting**, allowing historical transaction data to be queried and analyzed when needed.
 
-PostgreSQL stores:
-- Idempotency keys (scoped by client)
-- Request hashes
-- Processing status (e.g., `IN_PROGRESS`, `COMPLETED`)
-- Final response payload and HTTP status
+By separating responsibilities, Redis handles short-lived idempotency and performance optimization, while PostgreSQL ensures that all finalized transactions are safely stored for long-term use.
 
 ---
 
 ### Why Redis?
 
-Redis is used as a complementary in-memory store to improve performance and handle concurrency.
+Redis is used as a complementary in-memory store to improve performance and handle concurrency in the idempotency layer.
 
-It serves multiple purposes:
-- **Fast access** for frequently checked idempotency keys, reducing latency compared to database-only lookups.
-- **Concurrency coordination** during in-flight requests, helping prevent multiple threads from processing the same payment simultaneously.
-- **Database load reduction**, as repeated duplicate requests can be resolved without hitting PostgreSQL.
+Each idempotency request is cached in Redis under a unique key and stores important values such as:
+- **Request hash** – used to verify that repeated requests have the same payload.
+- **Processing status** (e.g., IN_PROGRESS or COMPLETED) – indicates the current state of the request.
+- **HTTP status code** – the original response status returned to the client.
+- **Response body** – the previously computed response used for replay.
 
-Redis is particularly useful during high traffic scenarios where multiple retries may arrive within a short time window.
+This enables:
+- Fast detection of duplicate requests.
+- Replay of previously computed responses without reprocessing.
+- Reduced database queries and lower system load.
 
----
+Redis was chosen because of:
+- Its **fast, in-memory architecture**, providing very low latency reads and writes.
+- Support for **atomic operations**, which help prevent multiple threads from processing the same request simultaneously.
 
-### Why PostgreSQL + Redis Together?
-
-Using both systems allows the design to balance **performance and reliability**:
-
-- Redis handles speed and concurrency
-- PostgreSQL guarantees durability and correctness
-
-If Redis data is lost, PostgreSQL remains the source of truth.
-If PostgreSQL is under heavy load, Redis absorbs frequent duplicate reads.
-
-This layered approach reflects patterns commonly used in real-world payment systems.
+A **TTL (Time-To-Live)** is applied to each record to define how long the idempotency entry should remain cached. Once the TTL expires, Redis automatically removes the record, preventing stale data and unnecessary memory usage.
 
 ---
+
 
 ### Why Docker Compose?
 
@@ -283,4 +261,3 @@ This composite key ensures that:
 
 1. Duplicate requests from the **same client** are handled safely.
 2. Requests from **different clients** using the same key remain independent.
----
